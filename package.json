@@ -1,0 +1,19 @@
+{
+  "name": "reminer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Motivated Seller Outreach Platform",
+  "scripts": {
+    "dev": "pnpm --filter webapp dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "deploy": "firebase deploy",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "emulators": "firebase emulators:start"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
