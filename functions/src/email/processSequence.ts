@@ -1,6 +1,7 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getDb } from "../config/firebase";
 import { SENDGRID_API_KEY } from "../config/secrets";
+import { FEATURES } from "../config/features";
 import { SendGridClient } from "./clients/sendgrid";
 import { getWarmupStatus, incrementWarmupCount } from "./warmup";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -20,6 +21,11 @@ export const processEmailSequences = onSchedule(
     secrets: [SENDGRID_API_KEY],
   },
   async () => {
+    if (!FEATURES.SENDGRID_EMAIL) {
+      logInfo("Email processing disabled via feature flag");
+      return;
+    }
+
     const db = getDb();
     const client = new SendGridClient(SENDGRID_API_KEY.value());
 

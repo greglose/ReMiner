@@ -1,5 +1,6 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getDb } from "../config/firebase";
+import { FEATURES } from "../config/features";
 import { getValidMetaToken } from "./tokenRefresh";
 import { MetaAdsClient } from "./clients/metaAds";
 import { FieldValue } from "firebase-admin/firestore";
@@ -19,6 +20,11 @@ export const syncMetaAudiences = onSchedule(
     timeoutSeconds: 540,
   },
   async () => {
+    if (!FEATURES.META_ADS) {
+      logInfo("Meta Ads sync disabled via feature flag");
+      return;
+    }
+
     const db = getDb();
 
     // Get valid token (will throw if expired)

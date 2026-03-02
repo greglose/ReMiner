@@ -1,5 +1,6 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getDb } from "../config/firebase";
+import { FEATURES } from "../config/features";
 import {
   SLYBROADCAST_UID,
   SLYBROADCAST_PASSWORD,
@@ -26,6 +27,11 @@ export const processRVMDrops = onSchedule(
     secrets: [SLYBROADCAST_UID, SLYBROADCAST_PASSWORD, DNC_API_KEY, DNC_API_SECRET],
   },
   async () => {
+    if (!FEATURES.SLYBROADCAST_RVM) {
+      logInfo("RVM processing disabled via feature flag");
+      return;
+    }
+
     const db = getDb();
     const configSnap = await db.collection("config").get();
 

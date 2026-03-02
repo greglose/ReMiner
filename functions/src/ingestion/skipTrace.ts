@@ -1,5 +1,6 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { getDb } from "../config/firebase";
+import { FEATURES } from "../config/features";
 import { BATCHLEADS_API_KEY, DNC_API_KEY, DNC_API_SECRET } from "../config/secrets";
 import { BatchLeadsClient } from "./clients/batchleads";
 import { DncChecker } from "../utils/dncCheck";
@@ -34,7 +35,6 @@ export const skipTraceNewLead = onDocumentCreated(
     });
 
     const client = new BatchLeadsClient(BATCHLEADS_API_KEY.value());
-    const dncChecker = new DncChecker(DNC_API_KEY.value(), DNC_API_SECRET.value());
 
     try {
       // Skip trace
@@ -58,22 +58,28 @@ export const skipTraceNewLead = onDocumentCreated(
         .sort((a, b) => b.confidence - a.confidence)
         .map((p) => p.phone);
 
-      // Check DNC for all phones
-      const dncResults = await dncChecker.checkPhones(phones);
-      const blockedPhones: string[] = [];
-      const clearPhones: string[] = [];
+      // Check DNC for all phones (if enabled)
+      let blockedPhones: string[] = [];
+      let clearPhones: string[] = [...phones];
 
-      for (const [phone, dncResult] of dncResults) {
-        if (dncResult.isBlocked) {
-          blockedPhones.push(phone);
-        } else {
-          clearPhones.push(phone);
+      if (FEATURES.DNC_CHECK && phones.length > 0) {
+        const dncChecker = new DncChecker(DNC_API_KEY.value(), DNC_API_SECRET.value());
+        const dncResults = await dncChecker.checkPhones(phones);
+        blockedPhones = [];
+        clearPhones = [];
+
+        for (const [phone, dncResult] of dncResults) {
+          if (dncResult.isBlocked) {
+            blockedPhones.push(phone);
+          } else {
+            clearPhones.push(phone);
+          }
         }
       }
 
       // Determine final status
       const hasValidContact = emails.length > 0 || clearPhones.length > 0;
-      const allPhonesBlocked = phones.length > 0 && clearPhones.length === 0;
+      const allPhonesBlocked = phones.length > 0 && clearPhones.length === 0 && FEATURES.DNC_CHECK;
 
       let finalStatus: string;
       if (!hasValidContact) {
@@ -91,14 +97,14 @@ export const skipTraceNewLead = onDocumentCreated(
         emails,
         phones,
         primaryEmail: emails[0] || null,
-        primaryPhone: clearPhones[0] || null,
+        primaryPhone: clearPhones[0] || phones[0] || null,
         ownerMailingAddress: result.mailingAddress.street,
         ownerMailingCity: result.mailingAddress.city,
         ownerMailingState: result.mailingAddress.state,
         ownerMailingZip: result.mailingAddress.zip,
-        dncStatus: blockedPhones.length > 0 ? "blocked" : "clear",
+        dncStatus: FEATURES.DNC_CHECK ? (blockedPhones.length > 0 ? "blocked" : "clear") : "pending",
         dncBlockedPhones: blockedPhones,
-        dncCheckedAt: FieldValue.serverTimestamp(),
+        dncCheckedAt: FEATURES.DNC_CHECK ? FieldValue.serverTimestamp() : null,
         status: finalStatus,
         enrichedAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
