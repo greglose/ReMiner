@@ -2,7 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -15,70 +14,54 @@ service cloud.firestore {
       return resource.data.userId == request.auth.uid;
     }
 
-    // Config - user can only access their own
     match /config/{userId} {
       allow read, write: if isAuthenticated() && isOwner(userId);
     }
 
-    // Leads - user can only read/update their own leads
     match /leads/{leadId} {
       allow read: if isAuthenticated() && isLeadOwner();
-      allow create: if false; // Only Cloud Functions
+      allow create: if false;
       allow update: if isAuthenticated() && isLeadOwner();
       allow delete: if false;
     }
 
-    // Email sequences - user's own only
     match /emailSequences/{sequenceId} {
-      allow read: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
-      allow write: if isAuthenticated() &&
-        request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
-    // Outreach log - read own only
     match /outreachLog/{logId} {
-      allow read: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow write: if false;
     }
 
-    // DNC list - no client access (sensitive)
     match /dnc/{phoneHash} {
       allow read, write: if false;
     }
 
-    // Warmup status - read own only
     match /warmup/{configId} {
       allow read: if isAuthenticated() && isOwner(configId);
       allow write: if false;
     }
 
-    // Alerts - user's own only
     match /alerts/{alertId} {
-      allow read, update: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
+      allow read, update: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create, delete: if false;
     }
 
-    // Meta audiences - read own only
     match /metaAudiences/{audienceId} {
-      allow read: if isAuthenticated() &&
-        resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow write: if false;
     }
 
-    // Token refresh - no client access
-    match /tokenRefresh/{service} {
+    match /tokenRefresh/{serviceId} {
       allow read, write: if false;
     }
 
-    // Webhook events - no client access
     match /webhookEvents/{eventId} {
       allow read, write: if false;
     }
 
-    // Health check - no client access
     match /_healthcheck/{docId} {
       allow read, write: if false;
     }
